@@ -16,7 +16,6 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
 import android.provider.MediaStore;
-import android.util.DisplayMetrics;
 import java.io.File;
 import java.io.IOException;
 
@@ -50,17 +49,14 @@ public class RecorderService extends Service {
     }
 
     private void startRecording(int res, boolean audio) {
-        DisplayMetrics metrics = getResources().getDisplayMetrics();
         int width, height, dpi;
-        
         if (res == 1080) { width = 1920; height = 1080; dpi = 480; }
         else if (res == 480) { width = 854; height = 480; dpi = 240; }
         else { width = 1280; height = 720; dpi = 320; }
 
-        // Cria o arquivo de saída na pasta de movies pública
         File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "NexoraRec");
         if (!dir.exists()) dir.mkdirs();
-        outputFile = new File(dir, "gravacao_" + System.currentTimeMillis() + ".mp4");
+        outputFile = new File(dir, "nexora_" + System.currentTimeMillis() + ".mp4");
 
         mediaRecorder = new MediaRecorder();
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
@@ -74,7 +70,7 @@ public class RecorderService extends Service {
         mediaRecorder.setVideoSize(width, height);
         mediaRecorder.setVideoFrameRate(30);
         
-        int bitrate = 2500000; // 2.5 Mbps (720p)
+        int bitrate = 2500000;
         if (res == 1080) bitrate = 5000000;
         if (res == 480) bitrate = 1000000;
         
@@ -99,26 +95,27 @@ public class RecorderService extends Service {
     @Override
     public void onDestroy() {
         if (isRecording && mediaRecorder != null) {
-            mediaRecorder.stop();
-            mediaRecorder.release();
-            isRecording = false;
-            
-            // Adiciona o vídeo à Galeria do Android
-            addVideoToGallery(outputFile.getAbsolutePath());
+            try {
+                mediaRecorder.stop();
+                mediaRecorder.release();
+                isRecording = false;
+                addToGallery(outputFile.getAbsolutePath());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         if (virtualDisplay != null) virtualDisplay.release();
         if (mediaProjection != null) mediaProjection.stop();
         super.onDestroy();
     }
 
-    private void addVideoToGallery(String path) {
+    private void addToGallery(String path) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ContentValues values = new ContentValues();
             values.put(MediaStore.Video.Media.DISPLAY_NAME, new File(path).getName());
             values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
             values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/NexoraRec");
             values.put(MediaStore.Video.Media.IS_PENDING, 1);
-            
             Uri uri = getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
             if (uri != null) {
                 values.clear();
