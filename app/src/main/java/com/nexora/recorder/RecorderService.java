@@ -4,7 +4,6 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
-import android.content.ContentValues;
 import android.content.Intent;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
@@ -12,7 +11,6 @@ import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
 import android.provider.MediaStore;
@@ -54,9 +52,12 @@ public class RecorderService extends Service {
         else if (res == 480) { width = 854; height = 480; dpi = 240; }
         else { width = 1280; height = 720; dpi = 320; }
 
+        // Força a pasta na raiz de Movies
         File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "NexoraRec");
         if (!dir.exists()) dir.mkdirs();
-        outputFile = new File(dir, "nexora_" + System.currentTimeMillis() + ".mp4");
+        
+        // Nome do arquivo bem visível
+        outputFile = new File(dir, "Nexora_" + System.currentTimeMillis() + ".mp4");
 
         mediaRecorder = new MediaRecorder();
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
@@ -99,7 +100,15 @@ public class RecorderService extends Service {
                 mediaRecorder.stop();
                 mediaRecorder.release();
                 isRecording = false;
-                addToGallery(outputFile.getAbsolutePath());
+
+                // FORÇA O ANDROID A ESCANEAR A PASTA E ATUALIZAR A GALERIA
+                android.media.MediaScannerConnection.scanFile(
+                    getApplicationContext(),
+                    new String[]{outputFile.getAbsolutePath()},
+                    new String[]{"video/mp4"},
+                    null
+                );
+                
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -107,22 +116,6 @@ public class RecorderService extends Service {
         if (virtualDisplay != null) virtualDisplay.release();
         if (mediaProjection != null) mediaProjection.stop();
         super.onDestroy();
-    }
-
-    private void addToGallery(String path) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.Video.Media.DISPLAY_NAME, new File(path).getName());
-            values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
-            values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/NexoraRec");
-            values.put(MediaStore.Video.Media.IS_PENDING, 1);
-            Uri uri = getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
-            if (uri != null) {
-                values.clear();
-                values.put(MediaStore.Video.Media.IS_PENDING, 0);
-                getContentResolver().update(uri, values, null, null);
-            }
-        }
     }
 
     @Override
