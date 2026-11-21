@@ -9,7 +9,7 @@
     <application 
         android:label="Nexora Rec" 
         android:requestLegacyExternalStorage="true"
-        android:theme="@android:style/Theme.DeviceDefault.Dark">
+        android:theme="@android:style/Theme.DeviceDefault">
         
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
